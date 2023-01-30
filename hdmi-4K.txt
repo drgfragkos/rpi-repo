@@ -1,0 +1,4 @@
+
+
+# Add this to the config.txt to enable 4K output at 60Hzv (3840x2160)
+hdmi_enable_4kp60=1

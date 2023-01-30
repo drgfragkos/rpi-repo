@@ -1,0 +1,8 @@
+
+## Check if both sources are available
+cat /etc/apt/sources.list
+
+
+## Do all the updates
+sudo apt update && sudo apt full-upgrade -y
+
