@@ -90,6 +90,20 @@ complete_step() {
 }
 
 #######################################
+# remove_track_file_if_done: 
+# If we've completed or skipped through all steps,
+# remove the .track file to reset progress.
+#######################################
+remove_track_file_if_done() {
+    # Our final step is 17. If we've passed that, we're done.
+    if [[ $CURRENT_STEP -gt 17 ]]; then
+        echo "All steps (1–17) have been completed or skipped."
+        echo "Removing $TRACK_FILE for a clean slate."
+        rm -f "$TRACK_FILE"
+    fi
+}
+
+#######################################
 # MAIN
 #######################################
 
@@ -366,7 +380,7 @@ if [[ $CURRENT_STEP -lt 15 ]]; then
     complete_step
 fi
 
-# STEP 16: (Optional) Reinstall Display Manager
+# STEP 16: (Optional) Reinstall/verify Display Manager
 if [[ $CURRENT_STEP -lt 16 ]]; then
     echo "STEP 16: (Optional) Reinstall/verify Display Manager."
     echo "Current DM is LightDM (likely), but you can install others."
@@ -435,12 +449,13 @@ if [[ $CURRENT_STEP -lt 17 ]]; then
 fi
 
 # After step 17, we've completed all post-reboot login loop checks.
-
 echo "=================================================="
 echo "✅ All available steps have been completed or skipped."
 echo "If you'd like to repeat any step, remove or edit $TRACK_FILE."
-echo ""
 echo "A final reboot is often helpful. You can do it now or later."
 echo "=================================================="
+
+# Final removal of track file if all steps are done
+remove_track_file_if_done
 
 exit 0
