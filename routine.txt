@@ -1,8 +1,21 @@
 
-## Check if both sources are available
+## Check if both update sources are available
 cat /etc/apt/sources.list
 
+## Quick way to list all packages with their versions. Use grep to filter results as in the example:
+apt list
+apt list | grep xz-utils
+
+## This can be quite useful when checking any installed packages and their specific version
+apt list | openssh
+
+## The command that provides the package info. Example: xz-utils/kali-rolling,now 5.6.1+really5.4.5-1 arm64 [installed,automatic]
+apt list -a xz-utils
+
+## The 'madison' attempts to mimic the outpout format of the Debian archive management tool. It displays all available versions of a package in a tabular format.
+apt-cache madison xz-utils
+xz-utils | 5.6.1+really5.4.6-1 | https://http.kali.org/kali kali-rolling/main arm64 Packages
 
 ## Do all the updates
-sudo apt update && sudo apt full-upgrade -y
+sudo apt update && sudo apt upgrade -y && sudo apt dist-upgrade -y && sudo apt autoremove -y && sudo apt autoclean -y && sudo apt clean && sudo dpkg --configure -a && sudo apt install -f
 
