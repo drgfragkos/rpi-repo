@@ -8,7 +8,7 @@
 #               Options:
 #                 -y, --yes    Skip all confirmation prompts (except the reboot).
 # Requirements: Must be run as root (sudo or su).
-# Author      : [Your Name]
+# Author      : (c) @drgfragkos 2024
 # ----------------------------------------------------------------------------
 # Examples:
 #   1) Place your custom images named 'default.jpg' and 'background.jpg' in the
@@ -26,6 +26,7 @@
 #   - We recommend 16:9 images at resolutions like 3840x2160 or 1920x1080/1200.
 #   - The script will optionally reboot the system at the end so that changes
 #     take effect.
+#
 # ----------------------------------------------------------------------------
 
 
