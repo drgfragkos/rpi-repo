@@ -1,7 +1,5 @@
 # set-bg-artwork.sh
 
-# set-bg-artwork.sh
-
 A Bash script that copies custom background images into Kali Linux's designated background directories and updates symbolic links accordingly. Optionally, the script can prompt to reboot the system so that changes take effect.
 
 ## Features
