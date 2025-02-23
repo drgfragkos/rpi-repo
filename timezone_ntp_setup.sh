@@ -30,7 +30,9 @@
 #       sudo ./timezone_ntp_setup.sh -ntp A
 #       sudo ./timezone_ntp_setup.sh -tz "Asia/Dubai" -ntp C
 #
-#  Author:       <Your Name>
+#  Author:
+#       (c) 2025 @drgfragkos
+#
 # -----------------------------------------------------------------------------
 
 # Exit on error
@@ -129,48 +131,34 @@ is_valid_timezone() {
 }
 
 # --------------------------------------------------------------------
+# Update GNOME Time and Date settings for timezone (if available)
+# --------------------------------------------------------------------
+update_clock_settings_timezone() {
+  if command -v gsettings >/dev/null 2>&1; then
+    echo "Updating clock settings timezone to: $1"
+    gsettings set org.gnome.desktop.datetime timezone "$1" 2>/dev/null || true
+  fi
+}
+
+# --------------------------------------------------------------------
+# Update GNOME Time and Date settings to use automatic NTP sync (if available)
+# --------------------------------------------------------------------
+update_clock_settings_ntp() {
+  if command -v gsettings >/dev/null 2>&1; then
+    echo "Updating clock settings: enabling automatic time synchronization"
+    gsettings set org.gnome.desktop.datetime automatic-clock-synchronization true 2>/dev/null || true
+  fi
+}
+
+# --------------------------------------------------------------------
 # Set system timezone
 # --------------------------------------------------------------------
 set_timezone() {
   local tz="$1"
   echo "Setting system timezone to: $tz"
   timedatectl set-timezone "$tz"
+  update_clock_settings_timezone "$tz"  # Ensure GUI reflects the new timezone
   echo "New system time: $(date)"
-}
-
-# --------------------------------------------------------------------
-# Offer interactive timezone update
-# --------------------------------------------------------------------
-interactive_timezone() {
-  local current_tz
-  current_tz=$(timedatectl show --property=Timezone --value)
-  echo "Current system timezone is: $current_tz"
-  echo
-  read -rp "Is this timezone correct? (y/n): " tz_correct
-
-  if [[ "${tz_correct,,}" == "n" || "${tz_correct,,}" == "no" ]]; then
-    echo
-    echo "Available timezones:"
-    echo "--------------------"
-    mapfile -t TIMEZONES < <(timedatectl list-timezones)
-    i=1
-    for ZONE in "${TIMEZONES[@]}"; do
-      echo "$i) $ZONE"
-      ((i++))
-    done
-    echo
-    read -rp "Enter the number corresponding to your desired timezone: " zone_choice
-    if ! [[ "$zone_choice" =~ ^[0-9]+$ ]] || (( zone_choice < 1 || zone_choice > ${#TIMEZONES[@]} )); then
-      echo "ERROR: Invalid choice. Exiting..."
-      exit 1
-    fi
-    local new_tz="${TIMEZONES[$((zone_choice-1))]}"
-    set_timezone "$new_tz"
-    echo
-  else
-    echo "Keeping existing timezone: $current_tz"
-    echo
-  fi
 }
 
 # --------------------------------------------------------------------
@@ -179,10 +167,12 @@ interactive_timezone() {
 install_timesyncd() {
   echo "Installing and enabling systemd-timesyncd..."
   apt-get update
-  # 'systemd' package might already be installed, but let's ensure
   apt-get install -y systemd
   systemctl enable systemd-timesyncd
   systemctl start systemd-timesyncd
+  # Update system settings to reflect NTP is enabled
+  timedatectl set-ntp true
+  update_clock_settings_ntp
   echo "systemd-timesyncd is now enabled."
   echo
 }
@@ -196,6 +186,9 @@ install_ntp() {
   apt-get install -y ntp
   systemctl enable ntp
   systemctl start ntp
+  # Although classic ntp runs as a separate service, update clock settings for consistency
+  timedatectl set-ntp true
+  update_clock_settings_ntp
   echo "ntp service is now enabled."
   echo
 }
@@ -209,6 +202,9 @@ install_chrony() {
   apt-get install -y chrony
   systemctl enable chrony
   systemctl start chrony
+  # Update clock settings to reflect automatic NTP sync
+  timedatectl set-ntp true
+  update_clock_settings_ntp
   echo "chrony is now enabled."
   echo
 }
@@ -329,27 +325,53 @@ if [[ -n "$AUTO_TIMEZONE" ]]; then
   echo
 else
   # Interactive timezone
+  interactive_timezone() {
+    local current_tz
+    current_tz=$(timedatectl show --property=Timezone --value)
+    echo "Current system timezone is: $current_tz"
+    echo
+    read -rp "Is this timezone correct? (y/n): " tz_correct
+
+    if [[ "${tz_correct,,}" == "n" || "${tz_correct,,}" == "no" ]]; then
+      echo
+      echo "Available timezones:"
+      echo "--------------------"
+      mapfile -t TIMEZONES < <(timedatectl list-timezones)
+      i=1
+      for ZONE in "${TIMEZONES[@]}"; do
+        echo "$i) $ZONE"
+        ((i++))
+      done
+      echo
+      read -rp "Enter the number corresponding to your desired timezone: " zone_choice
+      if ! [[ "$zone_choice" =~ ^[0-9]+$ ]] || (( zone_choice < 1 || zone_choice > ${#TIMEZONES[@]} )); then
+        echo "ERROR: Invalid choice. Exiting..."
+        exit 1
+      fi
+      local new_tz="${TIMEZONES[$((zone_choice-1))]}"
+      set_timezone "$new_tz"
+      echo
+    else
+      echo "Keeping existing timezone: $current_tz"
+      echo
+    fi
+  }
   interactive_timezone
 fi
 
 # 2) NTP SETUP
 if [[ -n "$AUTO_NTP_CHOICE" ]]; then
   echo "Automated mode: Installing/Enabling NTP choice '$AUTO_NTP_CHOICE'"
-  # If the automated NTP setup fails for any reason, we'll set RESTART_RECOMMENDED=1
   if ! automated_ntp "$AUTO_NTP_CHOICE"; then
     echo "There was an error installing/enabling NTP with option '$AUTO_NTP_CHOICE'."
     echo "You may need to fix this manually or choose a different NTP solution."
   fi
 else
-  # Interactive NTP
   interactive_ntp
 fi
 
 # 3) (Optional) Reboot
-# Only prompt if we are in interactive mode (i.e., no fully automated scenario)
-# We'll define "fully automated" as having both -tz and -ntp provided
 if [[ -z "$AUTO_TIMEZONE" || -z "$AUTO_NTP_CHOICE" ]]; then
-  # Interactive prompt for reboot
   echo
   read -rp "Would you like to reboot the system now? (y/n): " reboot_now
   if [[ "${reboot_now,,}" == "y" || "${reboot_now,,}" == "yes" ]]; then
@@ -360,7 +382,6 @@ if [[ -z "$AUTO_TIMEZONE" || -z "$AUTO_NTP_CHOICE" ]]; then
     echo "Script completed."
   fi
 else
-  # Automated scenario: no prompt. But we can inform user if there's a recommended reboot
   echo
   if [[ "$RESTART_RECOMMENDED" -eq 1 ]]; then
     echo "WARNING: Issues were detected. A reboot is recommended."
